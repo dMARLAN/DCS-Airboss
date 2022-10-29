@@ -1,0 +1,1 @@
+todo: describe cyclic vs cq ops
