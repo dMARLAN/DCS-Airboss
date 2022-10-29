@@ -7,7 +7,7 @@ local ICLSChannel = 1 -- ICLS Channel
 local ACLSChannel = 123 -- ACLS Channel
 local desiredWindOverDeckKnots = 12 -- Should be 25-30 knots
 local isCyclicOps = true -- TRUE = Cyclic Ops with air plan; FALSE = CQ Ops. See README for more info
-local isMenuAllGroups = false -- TRUE = Menu for all groups; FALSE = Menu for specific group
+local isMenuAllGroups = false -- TRUE = Menu for all groups; FALSE = Menu for specific groups
 local GROUPS_WITH_MENU = { "UZI", "ENFIELD", "COLT", "PONTIAC", "SPRINGFIELD", "DODGE", "FORD", "CHEVY" } -- Matches if contains any of these strings
 
 -- Configuration: Cyclic Ops
@@ -55,14 +55,18 @@ function createGroupSpecificMenus(groupId, shipName)
     airbossMenu[groupId] = missionCommands.addSubMenuForGroup(groupId, "Airboss Menu")
     missionCommands.addCommandForGroup(groupId, "Force Recovery Start", airbossMenu[groupId], forceRecoveryStart, shipName)
     missionCommands.addCommandForGroup(groupId, "Force Recovery Stop", airbossMenu[groupId], forceRecoveryStop, shipName)
-    missionCommands.addCommandForGroup(groupId, "Air Plan Resume", airbossMenu[groupId], airPlanResume, shipName)
+    if (isCyclicOps) then
+        missionCommands.addCommandForGroup(groupId, "Air Plan Resume", airbossMenu[groupId], airPlanResume, shipName)
+    end
 end
 
 function createMenusForAll(shipName)
     local airbossMenuAllGroups = missionCommands.addSubMenu("Airboss Menu")
     missionCommands.addCommand("Force Recovery Start", airbossMenuAllGroups, forceRecoveryStart, shipName)
     missionCommands.addCommand("Force Recovery Stop", airbossMenuAllGroups, forceRecoveryStop, shipName)
-    missionCommands.addCommand("Air Plan Resume", airbossMenuAllGroups, airPlanResume, shipName)
+    if (isCyclicOps) then
+        missionCommands.addCommand("Air Plan Resume", airbossMenuAllGroups, airPlanResume, shipName)
+    end
 end
 
 function forceRecoveryStart(shipName)
