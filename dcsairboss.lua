@@ -56,7 +56,7 @@ function createGroupSpecificMenus(groupId, shipName)
     missionCommands.addCommandForGroup(groupId, "Force Recovery Start", airbossMenu[groupId], forceRecoveryStart, shipName)
     missionCommands.addCommandForGroup(groupId, "Force Recovery Stop", airbossMenu[groupId], forceRecoveryStop, shipName)
     if (isCyclicOps) then
-        missionCommands.addCommandForGroup(groupId, "Air Plan Resume", airbossMenu[groupId], airPlanResume, shipName)
+        missionCommands.addCommandForGroup(groupId, "Air Plan Resume", airbossMenu[groupId], airPlanResume)
     end
 end
 
@@ -65,7 +65,7 @@ function createMenusForAll(shipName)
     missionCommands.addCommand("Force Recovery Start", airbossMenuAllGroups, forceRecoveryStart, shipName)
     missionCommands.addCommand("Force Recovery Stop", airbossMenuAllGroups, forceRecoveryStop, shipName)
     if (isCyclicOps) then
-        missionCommands.addCommand("Air Plan Resume", airbossMenuAllGroups, airPlanResume, shipName)
+        missionCommands.addCommand("Air Plan Resume", airbossMenuAllGroups, airPlanResume)
     end
 end
 
@@ -79,8 +79,15 @@ function forceRecoveryStop(shipName)
     returnShipToInitialPosition(shipName)
 end
 
-function airPlanResume(shipName)
-
+function airPlanResume()
+    executeCyclicOps(
+            carrierName,
+            desiredWindOverDeckKnots,
+            timeOfFirstAirPlanWindowHour,
+            timeOfFirstAirPlanWindowMinute,
+            lengthOfAirPlanWindowMinutes,
+            numOfAirPlanWindows
+    )
 end
 
 function clearAirPlan()
