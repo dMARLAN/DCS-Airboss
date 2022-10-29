@@ -19,7 +19,7 @@ local automaticTurnIntoWindRangeNauticalMiles = 50
 
 
 -- don't edit past this line
-local turnShipIntoWind, generateAirPlan, executeCyclicOps, returnToStart, setWaypoint
+local turnShipIntoWind, generateAirPlan, executeCyclicOps, returnShipToInitialPosition, setWaypoint
 local initialCarrierPosition = Unit.getByName(carrierName):getPoint()
 
 function turnShipIntoWind(shipName, speedKnots)
@@ -40,14 +40,48 @@ function turnShipIntoWind(shipName, speedKnots)
     local waypoint = { x = 0, y = 0, speed = offsetVel, type = "Turning Point", action = "Turning Point" }
     waypoint.x = math.cos(bearing) * 100000 + curPos.x -- gives 100km long track in a given direction
     waypoint.y = math.sin(bearing) * 100000 + curPos.z
+
+    setWaypoint(shipName, waypoint)
 end
 
-function returnToStart()
+function returnShipToInitialPosition(shipName)
     local waypoint = { x = initialCarrierPosition.x, y = initialCarrierPosition.y, speed = 30, type = "Turning Point", action = "Turning Point" }
+    setWaypoint(shipName, waypoint)
 end
 
-function setWaypoint()
+function setWaypoint(groupName, waypoint)
+    local curPos = Unit.getByName(groupName):getPoint()
+    local mission = {
+        id = 'Mission',
+        params = {
+            route = {
+                points = {
+                    [1] = {
+                        x = curPos.x,
+                        y = curPos.y,
+                        type = "Turning Point",
+                        speed = 25,
+                        action = "Turning Point",
+                    },
+                    [2] = {
+                        x = waypoint.x,
+                        y = waypoint.y,
+                        type = waypoint.type,
+                        speed = waypoint.speed,
+                        action = waypoint.action,
+                    },
+                },
+            },
+        },
+    }
 
+    local group = Group.getByName(groupName)
+    if group then
+        local controller = group:getController()
+        if controller then
+            controller:setTask(mission)
+        end
+    end
 end
 
 function generateAirPlan(timeFirstAirPlanWindowHour, timeFirstAirPlanWindowMinute, lengthAirPlanWindowMinutes, numAirPlanWindows)
@@ -70,7 +104,7 @@ function executeCyclicOps(shipName, speedKnots, timeFirstAirPlanWindowHour, time
 
     for i = 1, #airPlanWindows do
         timer.scheduleFunction(turnShipIntoWind(), { shipName, speedKnots }, timer.getTime() + airPlanWindows[i].startSecs)
-        timer.scheduleFunction(returnToStart(), { shipName }, timer.getTime() + airPlanWindows[i].endSecs)
+        timer.scheduleFunction(returnShipToInitialPosition(), { shipName }, timer.getTime() + airPlanWindows[i].endSecs)
     end
 end
 
