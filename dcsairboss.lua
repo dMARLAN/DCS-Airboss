@@ -7,6 +7,8 @@ local ICLSChannel = 1 -- ICLS Channel
 local ACLSChannel = 123 -- ACLS Channel
 local desiredWindOverDeckKnots = 12 -- Should be 25-30 knots
 local isCyclicOps = true -- TRUE = Cyclic Ops with air plan; FALSE = CQ Ops. See README for more info
+local isMenuAllGroups = false -- TRUE = Menu for all groups; FALSE = Menu for specific group
+local GROUPS_WITH_MENU = { "UZI", "ENFIELD", "COLT", "PONTIAC", "SPRINGFIELD", "DODGE", "FORD", "CHEVY" } -- Matches if contains any of these strings
 
 -- Configuration: Cyclic Ops
 local numOfAirPlanWindows = 8
@@ -20,7 +22,73 @@ local automaticTurnIntoWindRangeNauticalMiles = 50
 
 -- don't edit past this line
 local turnShipIntoWind, generateAirPlan, executeCyclicOps, returnShipToInitialPosition, setWaypoint
+local forceRecoveryStart, forceRecoveryStop, airPlanResume, createMenusForAll, clearAirPlan
 local initialCarrierPosition = Unit.getByName(carrierName):getPoint()
+
+local airbossMenu = {}
+local airbossMenuHandler = {}
+local airPlanWindowFunctions = {}
+local createGroupSpecificMenus, matchAnyName
+
+function airbossMenuHandler:onEvent(event)
+    if event.id == world.event.S_EVENT_BIRTH and event.initiator:getPlayerName() ~= nil then
+        if matchAnyName(Group.getName(event.initiator:getGroup()), GROUPS_WITH_MENU) then
+            local group = event.initiator:getGroup()
+            local groupId = Group.getID(group)
+            if airbossMenu[groupId] == nil then
+                createGroupSpecificMenus(groupId)
+            end
+        end
+    end
+end
+
+function matchAnyName(groupNameToCheck, namesTable)
+    for _, name in pairs(namesTable) do
+        if string.match(groupNameToCheck,name) then
+            return true
+        end
+    end
+    return false
+end
+
+function createGroupSpecificMenus(groupId, shipName)
+    airbossMenu[groupId] = missionCommands.addSubMenuForGroup(groupId, "Airboss Menu")
+    missionCommands.addCommandForGroup(groupId, "Force Recovery Start", airbossMenu[groupId], forceRecoveryStart, shipName)
+    missionCommands.addCommandForGroup(groupId, "Force Recovery Stop", airbossMenu[groupId], forceRecoveryStop, shipName)
+    missionCommands.addCommandForGroup(groupId, "Air Plan Resume", airbossMenu[groupId], airPlanResume, shipName)
+end
+
+function createMenusForAll(shipName)
+    local airbossMenuAllGroups = missionCommands.addSubMenu("Airboss Menu")
+    missionCommands.addCommand("Force Recovery Start", airbossMenuAllGroups, forceRecoveryStart, shipName)
+    missionCommands.addCommand("Force Recovery Stop", airbossMenuAllGroups, forceRecoveryStop, shipName)
+    missionCommands.addCommand("Air Plan Resume", airbossMenuAllGroups, airPlanResume, shipName)
+end
+
+function forceRecoveryStart(shipName)
+    clearAirPlan()
+    turnShipIntoWind(shipName, 30)
+end
+
+function forceRecoveryStop(shipName)
+    clearAirPlan()
+    returnShipToInitialPosition(shipName)
+end
+
+function airPlanResume(shipName)
+
+end
+
+function clearAirPlan()
+    for i = 1, numOfAirPlanWindows do
+        if airPlanWindowFunctions[i] ~= nil then
+            timer.removeFunction(airPlanWindowFunctions[i].startFunc)
+            airPlanWindowFunctions[i].startFunc = nil
+            timer.removeFunction(airPlanWindowFunctions[i].stopFunc)
+            airPlanWindowFunctions[i].stopFunc = nil
+        end
+    end
+end
 
 function turnShipIntoWind(shipName, speedKnots)
     local curPos = Unit.getByName(shipName):getPoint()
@@ -101,10 +169,10 @@ end
 
 function executeCyclicOps(shipName, speedKnots, timeFirstAirPlanWindowHour, timeFirstAirPlanWindowMinute, lengthAirPlanWindowMinutes, numAirPlanWindows)
     local airPlanWindows = generateAirPlan(timeFirstAirPlanWindowHour, timeFirstAirPlanWindowMinute, lengthAirPlanWindowMinutes, numAirPlanWindows)
-
+    -- TODO: Fix time to absolute
     for i = 1, #airPlanWindows do
-        timer.scheduleFunction(turnShipIntoWind(), { shipName, speedKnots }, timer.getTime() + airPlanWindows[i].startSecs)
-        timer.scheduleFunction(returnShipToInitialPosition(), { shipName }, timer.getTime() + airPlanWindows[i].endSecs)
+        airPlanWindowFunctions[i].startFunc = timer.scheduleFunction(turnShipIntoWind(), { shipName, speedKnots }, timer.getTime() + airPlanWindows[i].startSecs)
+        airPlanWindowFunctions[i].stopFunc = timer.scheduleFunction(returnShipToInitialPosition(), { shipName }, timer.getTime() + airPlanWindows[i].endSecs)
     end
 end
 
@@ -120,6 +188,12 @@ local function main()
         )
     else
         -- do CQ ops (not implemented)
+    end
+
+    if (isMenuAllGroups) then
+        world.addEventHandler(airbossMenuHandler)
+    else
+        createMenusForAll()
     end
 end
 main()
